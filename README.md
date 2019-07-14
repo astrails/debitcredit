@@ -9,7 +9,7 @@ Double Entry Accounting for Rails Applications
 
 * add `gem 'debitcredit'` to your `Gemfile`
 * and run `bundle install`
-* run `rake debitcredit:install:migrations db:migrate db:test:prepare`
+* run `rake debitcredit:install:migrations db:migrate`
 
 ## Upgrade
 
@@ -31,38 +31,50 @@ Transactions were renamed to entries. You need to rename:
 In Double Entry Accounting there are 5 account types: Asset, Liability, Income,
 Expense and Equity defined as follows:
 
-**Asset** is a resource controlled by the entity as a result of past events and
-from which future economic benefits are expected to flow to the entity
+**Asset** accounts are economic resources which benefit the business/entity and
+will continue to do so. e.g. cash, bank, inventory, buildings, etc.
 
-**Liability** is defined as an obligation of an entity arising from past
-entries or events, the settlement of which may result in the transfer or
-use of assets, provision of services or other yielding of economic benefits in
-the future.
+**Liability** accounts record debts or future obligations the business/entity
+owes to others.
+
+**Equity** accounts record the claims of the owners of the business/entity to
+the assets of that business/entity. e.g. capital, retained earnings, drawings,
+common stock, accumulated funds, etc.
 
 **Income** is increases in economic benefits during the accounting period in
 the form of inflows or enhancements of assets or decreases of liabilities that
 result in increases in equity, other than those relating to contributions from
 equity participants.
 
-**Expense** is a decrease in economic benefits during the accounting period in
-the form of outflows or depletions of assets or incurrences of liabilities that
-result in decreases in equity, other than those relating to distributions to
-equity participants.
+**Income** accounts record all increases in Equity other than that contributed
+by the owner/s of the business/entity. e.g. services rendered, sales, interest
+income, membership fees, rent income, etc.
 
-**Equity** consists of the net assets of an entity. Net assets is the
-difference between the total assets of the entity and all its liabilities.
+**Expense** accounts record all decreases in the owners' equity which occur
+from using the assets or increasing liabilities in delivering goods or services
+to a customer - the costs of doing business. e.g. telephone, electricity,
+salaries, depreciation, rent etc.
 
 
-In each entry, sources are credited and destinations are debited.
 
-I repeat: credit is the **source** and debit is the **destination**.
-
-debit and credit affect balance of an account differently depending on the
+Debit and credit affect balance of an account differently depending on the
 account type.
 
 For Asset and Expense accounts, Debit increases the balance, and credit
 decreases it. For the rest of the accounts it is the opposite. i.e. debit
 decreases and credit increases the balance.
+
+In each transaction sources are credited and destinations are debited.
+
+I repeat: credit is the **source** and debit is the **destination**.
+
+Personally, I was surprised to learn that. From my dealings with the bank I
+expectred 'credit' to be the destination, becase each time my bank account is
+'credited' I have more money in it.
+
+The explanation for this is simple, your bank sees your account not as an
+'asset', but as a 'liability', becase the balance on it is how much bank ows
+you. That's why crediting this account increases it's balance.
 
 ## Accounting Equation
 
@@ -105,11 +117,6 @@ Or better yet:
       include Debitcredit::Extension
 
       has_accounts
-      has_entries do
-        def pay!
-          ...
-        end
-      end
     end
 
 By default accounts are prevented from having a negative balance, but you can
@@ -148,6 +155,17 @@ negative.
 You can create entries with a reference. For this case, and in case that
 reference has 'accounts' association, you can use account names instead of objects:
 
+    class User
+      include Debitcredit::Extension
+
+      has_accounts
+      has_entries do
+        def pay!
+          ...
+        end
+      end
+    end
+
     t = user1.entries.prepare(description: 'sale') do
       debit :checking, 100 # will use user1.accounts[:checking]
       credit user2.accounts[:checking], 100
@@ -159,8 +177,16 @@ existing entry:
 rollback = existing.inverse(kind: 'refund', description: 'item is out of stock')
 rollback.save!
 
-> Note: by inverse entries are allowed to take accounts into overdraft. if
-> this is undesirable, pass `enable_overdraft` to the `inverse` call.
+### Overdraft
+
+If an account doesn't allow overdraft (which is the default), no transaction
+will be allowed to decrease the blance if result is negative. The 'decrease'
+part is important, so that it's still ok to have a transaction that increases
+the balance which was negative.
+
+By default inverse entries are allowed to take accounts into overdraft even for
+accounts with `overdraft_enabled: false`.  if this is undesirable, pass
+`ignore_overdraft: false` to the `inverse` call.
 
 ## Contributing
 
